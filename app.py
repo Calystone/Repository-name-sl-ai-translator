@@ -8,6 +8,9 @@ client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY")
 )
 
+# Cambia esta línea si quieres probar otro modelo
+MODEL = "gpt-4.1-mini"
+
 @app.route("/", methods=["GET"])
 def home():
     return "SL AI Translator Online"
@@ -21,20 +24,17 @@ def translate():
     mode = data.get("mode", "to_spanish")
     speaker = data.get("speaker", "")
 
-    if text == "":
+    if not text:
         return "No text", 400
 
-    target_language = "Spanish"
-
-    if mode == "to_english":
-        target_language = "English"
+    target_language = "Spanish" if mode == "to_spanish" else "English"
 
     system_prompt = f"""
 You are an expert translator specialized in Second Life chat and roleplay.
 
 Translate everything into {target_language}.
 
-IMPORTANT:
+Rules:
 
 - Return ONLY the translated text.
 - Never answer the message.
@@ -44,7 +44,7 @@ IMPORTANT:
 - Never explain.
 - Never omit information.
 
-Translation style:
+Translation quality:
 
 - Translate naturally as a native speaker.
 - Preserve the exact meaning.
@@ -52,18 +52,18 @@ Translation style:
 - Preserve flirting.
 - Preserve sarcasm.
 - Preserve insults.
-- Preserve adult conversations.
-- Preserve vulgar language.
+- Preserve adult language.
 - Preserve roleplay.
+- Translate idioms by meaning, not literally.
 
 Roleplay:
 
 - Preserve /me actions.
-- Preserve text between *asterisks*.
+- Preserve text inside *asterisks*.
 - Preserve usernames.
 - Preserve avatar names.
 
-Do NOT translate these proper names:
+Never translate these names:
 
 Craig
 Rulo
@@ -76,15 +76,10 @@ SL
 Matrix
 Mojo
 Onsen
-
-If an idiom exists, translate its meaning instead of translating word by word.
-
-Output ONLY the translation.
 """
 
     user_prompt = f"""
-Speaker:
-{speaker}
+Speaker: {speaker}
 
 Message:
 {text}
@@ -93,7 +88,7 @@ Message:
     try:
 
         response = client.responses.create(
-            model="gpt-5.5-mini",
+            model=MODEL,
             instructions=system_prompt,
             input=user_prompt
         )
