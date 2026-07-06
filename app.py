@@ -1,10 +1,9 @@
+import os
 from flask import Flask, request
 from openai import OpenAI
-import os
 
 app = Flask(__name__)
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 @app.get("/")
 def home():
@@ -12,46 +11,46 @@ def home():
 
 @app.post("/translate")
 def translate():
+    data = request.get_json(force=True, silent=True) or {}
 
-    data = request.json
+    text = data.get("text", "").strip()
+    mode = data.get("mode", "to_spanish")
+    speaker = data.get("speaker", "Unknown")
 
-    text = data.get("text","")
-    mode = data.get("mode","to_spanish")
-    speaker = data.get("speaker","")
+    if not text:
+        return "No text received", 400
 
-    if mode == "to_english":
+    target_language = "English" if mode == "to_english" else "Spanish"
 
-        instructions = """
-Translate into natural American English.
+    system_prompt = f"""
+You are an expert translator for Second Life chat and roleplay.
 
-Keep:
-- RP actions
-- emotions
-- jokes
-- slang
-- names
+Translate the message into {target_language}.
 
-Return ONLY the translation.
+Rules:
+- Return only the translation.
+- Translate naturally, as a native speaker would say it.
+- Preserve the exact meaning.
+- Do not summarize, censor, moralize, soften, add, or remove anything.
+- Preserve jokes, flirting, insults, profanity, sarcasm, adult language, and roleplay tone.
+- Translate idioms by meaning, not word by word.
+- Keep /me actions, *emotes*, names, usernames, and places unchanged when appropriate.
+- Keep these names unchanged: Craig, Rulo, Bastards, Jungle Bastards, Red Coast, Amazon, Matrix, Second Life, SL, Mojo, Onsen.
 """
 
-    else:
-
-        instructions = """
-Translate into natural Spanish.
-
-Keep:
-- RP
-- emotions
-- names
-- slang
-
-Return ONLY the translation.
+    user_prompt = f"""
+Speaker: {speaker}
+Original text:
+{text}
 """
 
-    response = client.responses.create(
-        model="gpt-5.5",
-        instructions=instructions,
-        input=text
-    )
+    try:
+        response = client.responses.create(
+            model="gpt-5.4-mini",
+            instructions=system_prompt,
+            input=user_prompt,
+        )
+        return response.output_text.strip()
 
-    return response.output_text
+    except Exception as e:
+        return f"AI error: {str(e)}", 500
